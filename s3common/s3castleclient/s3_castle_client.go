@@ -7,6 +7,7 @@ import (
 	"github.com/tsthght/s3folder/s3lib/s3thriftrpc/castleclient"
 	"sync"
 	"time"
+	"errors"
 
 	"git.sankuai.com/inf/inf_go.git/go_mns_sdk/src/mns_sdk"
 )
