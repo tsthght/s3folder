@@ -2,9 +2,9 @@ package castleclient
 
 import (
 	"net"
-	"s3lib/s3thriftrpc/castle"
-	log "s3lib/third/seelog"
+	"github.com/tsthght/s3folder/s3lib/s3thriftrpc/castle"
 	"time"
+	"fmt"
 
 	"git.apache.org/thrift.git/lib/go/thrift"
 )
@@ -17,17 +17,17 @@ type CastleClientEnableClose struct {
 func NewCastleRpcClient(serverHost string, port string, timeoutSecondes int64) (client *CastleClientEnableClose, err error) {
 	if tSocket, socketErr := thrift.NewTSocketTimeout(net.JoinHostPort(serverHost, port), time.Second*time.Duration(timeoutSecondes)); socketErr != nil {
 		err = socketErr
-		log.Errorf("new thrift rpc socket failed, host=[%s] port=[%s] err=[%s]", serverHost, port, err)
+		fmt.Printf("new thrift rpc socket failed, host=[%s] port=[%s] err=[%s]", serverHost, port, err)
 	} else {
 		transportFactory := thrift.NewTFramedTransportFactory(thrift.NewTTransportFactory())
 		if transport, transportErr := transportFactory.GetTransport(tSocket); transportErr != nil {
 			err = transportErr
-			log.Errorf("new thrift GetTransport err, host=[%s] port=[%s] err=[%s]", serverHost, port, err)
+			fmt.Printf("new thrift GetTransport err, host=[%s] port=[%s] err=[%s]", serverHost, port, err)
 		} else {
 			protocolFactory := thrift.NewTBinaryProtocolFactoryDefault()
 			rawClient := castle.NewCastleClientFactory(transport, protocolFactory)
 			if err = transport.Open(); err != nil {
-				log.Errorf("open thrift rpc client err, host=[%s] port=[%s] err=[%s]", serverHost, port, err)
+				fmt.Printf("open thrift rpc client err, host=[%s] port=[%s] err=[%s]", serverHost, port, err)
 			} else {
 				client = &CastleClientEnableClose{
 					Client:        rawClient,
