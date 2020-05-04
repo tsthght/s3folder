@@ -3,7 +3,7 @@ package s3mafkaclient
 import (
 	"errors"
 	"fmt"
-	cluster "git.sankuai.com/mq-mafka_client_go/gocode/src/github.com/bsm/sarama-cluster"
+	cluster "github.com/bsm/sarama-cluster"
 	"github.com/tsthght/s3folder/s3common"
 	"github.com/tsthght/s3folder/s3common/s3castleclient"
 	"sync"
