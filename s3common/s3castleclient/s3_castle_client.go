@@ -2,8 +2,6 @@ package s3castleclient
 
 import (
 	"context"
-	"errors"
-	"fmt"
 	"github.com/tsthght/s3folder/s3common"
 	"github.com/tsthght/s3folder/s3lib/s3thriftrpc/castle"
 	"github.com/tsthght/s3folder/s3lib/s3thriftrpc/castleclient"
@@ -13,7 +11,7 @@ import (
 	"git.sankuai.com/inf/inf_go.git/go_mns_sdk/src/mns_sdk"
 )
 
-var (fmt.Printf("CaslteClient
+var (
 	ErrCastleServerMapEmpty  = errors.New("castle server list is empty")
 	ErrCastleResponseEmpty   = errors.New("castle response is empty")
 	ErrCastleResponseErrCode = errors.New("castle response err code")
