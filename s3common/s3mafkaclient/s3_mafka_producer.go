@@ -2,17 +2,17 @@ package s3mafkaclient
 
 import (
 	"bytes"
-	"s3common"
+	"github.com/tsthght/s3folder/s3common"
 
 	"github.com/Shopify/sarama"
 
 	"encoding/binary"
 	"encoding/json"
 	"errors"
-	"s3common/s3castleclient"
-	log "s3lib/third/seelog"
+	"github.com/tsthght/s3folder/s3common/s3castleclient"
 	"sync"
 	"time"
+	"fmt"
 )
 
 var (
@@ -53,7 +53,7 @@ func newSynProducer(topic string, retryTimes int, config *sarama.Config, castleM
 	if config == nil {
 		config := sarama.NewConfig()
 		config.Producer.RequiredAcks = sarama.WaitForLocal
-		log.Infof("Producer flush config=[%+v]", config.Producer.Flush)
+		fmt.Printf("Producer flush config=[%+v]", config.Producer.Flush)
 		config.Producer.Return.Successes = true
 	}
 	client.Config = config
@@ -76,11 +76,11 @@ func NewMafkaSynProducerWithCastleManager(topic string, retryTimes int, castleMa
 	castleManager.AddProducerTopic(client.Topic)
 	for i := 0; i < s3common.ConnectionRetryTimes; i++ {
 		if brokerAddrs, tmpErr := castleManager.GetProducerBrokerList(client.Topic); tmpErr != nil || len(brokerAddrs) == 0 {
-			log.Warnf("SynProducer GetProducerBrokerList fail, err=[%s]", tmpErr)
+			fmt.Printf("SynProducer GetProducerBrokerList fail, err=[%s]", tmpErr)
 			err = tmpErr
 			time.Sleep(time.Second * 2)
 		} else if err = client.init(brokerAddrs); err != nil {
-			log.Warnf("SynProducer initSaramaProducer fail, err=[%+v]", err)
+			fmt.Printf("SynProducer initSaramaProducer fail, err=[%+v]", err)
 		} else {
 			err = nil
 			break
@@ -90,18 +90,18 @@ func NewMafkaSynProducerWithCastleManager(topic string, retryTimes int, castleMa
 		return nil, err
 	}
 	client.clientID = castleManager.RegisterObserver(client)
-	log.Infof("Producer register, clientID=[%s]", client.clientID)
+	fmt.Printf("Producer register, clientID=[%s]", client.clientID)
 	return
 }
 
 func (p *MafkaSynProducer) init(addrsMap map[string][]string) (err error) {
-	log.Infof("Producer init, info=[%s]", addrsMap)
+	fmt.Printf("Producer init, info=[%s]", addrsMap)
 
 	// 只返回一个集群,取第一个即可
 	for _, brokerAddrs := range addrsMap {
 		if sp, temErr := sarama.NewSyncProducer(brokerAddrs, p.Config); temErr != nil {
 			err = temErr
-			log.Warnf("Producer init fail, err=[%s]", err)
+			fmt.Printf("Producer init fail, err=[%s]", err)
 		} else {
 			p.Producer = sp
 		}
@@ -115,7 +115,7 @@ func (p *MafkaSynProducer) GenerateMessage(item interface{}) (msg *sarama.Produc
 	msg.Topic = p.Topic
 	msg.Partition = int32(-1)
 	if body, temErr := json.Marshal(item); temErr != nil {
-		log.Errorf("Producer marshal item fail, item=[%v] err=[%s]", item, temErr)
+		fmt.Printf("Producer marshal item fail, item=[%v] err=[%s]", item, temErr)
 		err = temErr
 	} else {
 		var value []byte
@@ -123,7 +123,7 @@ func (p *MafkaSynProducer) GenerateMessage(item interface{}) (msg *sarama.Produc
 		buf := new(bytes.Buffer)
 
 		if err := binary.Write(buf, binary.LittleEndian, size); err != nil {
-			log.Errorf("binary write fail, err=[%s]", err)
+			fmt.Printf("binary write fail, err=[%s]", err)
 		} else {
 			//为了兼容java客户端消息格式
 			value = append(value, typeID)
@@ -142,7 +142,7 @@ func (p *MafkaSynProducer) GenerateMessage(item interface{}) (msg *sarama.Produc
 //发送单个消息
 func (p *MafkaSynProducer) SendMessage(item interface{}) (partition int32, offset int64, err error) {
 	if msg, temErr := p.GenerateMessage(item); temErr != nil {
-		log.Errorf("Producer generate message fail, item=[%v] err=[%s]", item, temErr)
+		fmt.Printf("Producer generate message fail, item=[%v] err=[%s]", item, temErr)
 		err = temErr
 	} else {
 		success := false
@@ -157,7 +157,7 @@ func (p *MafkaSynProducer) SendMessage(item interface{}) (partition int32, offse
 		for success == false && curRetryTime < p.RetryTimes {
 			if temPartition, temOffset, temErr := p.Producer.SendMessage(msg); temErr != nil {
 				err = temErr
-				log.Warnf("send message fail, it will retry, curRetryTime=[%d] err=[%s]", curRetryTime, err)
+				fmt.Printf("send message fail, it will retry, curRetryTime=[%d] err=[%s]", curRetryTime, err)
 			} else {
 				success = true
 				partition = temPartition
@@ -167,10 +167,10 @@ func (p *MafkaSynProducer) SendMessage(item interface{}) (partition int32, offse
 			curRetryTime++
 		}
 		if success == false {
-			log.Errorf("Producer send message fail, err=[%s]", err)
+			fmt.Printf("Producer send message fail, err=[%s]", err)
 		} else {
 			err = nil
-			log.Infof("Producer send message succ, partition=[%d] offset=[%d]", partition, offset)
+			fmt.Printf("Producer send message succ, partition=[%d] offset=[%d]", partition, offset)
 		}
 	}
 	return
@@ -193,7 +193,7 @@ func (p *MafkaSynProducer) SendMessages(msgs []*sarama.ProducerMessage) (err err
 	for success == false && curRetryTime < p.RetryTimes {
 		if temErr := p.Producer.SendMessages(msgs); temErr != nil {
 			err = temErr
-			log.Warnf("send patch messages fail, it will retry, curRetryTime=[%d] err=[%s]", curRetryTime, err)
+			fmt.Printf("send patch messages fail, it will retry, curRetryTime=[%d] err=[%s]", curRetryTime, err)
 		} else {
 			success = true
 			break
@@ -202,10 +202,10 @@ func (p *MafkaSynProducer) SendMessages(msgs []*sarama.ProducerMessage) (err err
 	}
 
 	if success == false {
-		log.Errorf("Producer send patch messages fail, nums=[%d] err=[%s]", len(msgs), err)
+		fmt.Printf("Producer send patch messages fail, nums=[%d] err=[%s]", len(msgs), err)
 	} else {
 		err = nil
-		log.Infof("Producer send patch messages succ, nums=[%d]", len(msgs))
+		fmt.Printf("Producer send patch messages succ, nums=[%d]", len(msgs))
 	}
 	return
 }
@@ -218,7 +218,7 @@ func (p *MafkaSynProducer) Close() {
 
 //配置动态更新
 func (p *MafkaSynProducer) UpdateConfig(addrsMap map[string][]string) {
-	log.Warn("Producer updateConfig")
+	fmt.Printf("Producer updateConfig")
 	for _, addrs := range addrsMap {
 		if p.Producer != nil {
 			p.Producer.UpdateConfigAddrs(addrs)
@@ -229,7 +229,7 @@ func (p *MafkaSynProducer) UpdateConfig(addrsMap map[string][]string) {
 
 //客户端重启
 func (p *MafkaSynProducer) Reinit(addrsMap map[string][]string) {
-	log.Warn("Producer reinit")
+	fmt.Printf("Producer reinit")
 	p.producerLock.Lock()
 	defer p.producerLock.Unlock()
 	if p.Producer != nil {
@@ -238,9 +238,9 @@ func (p *MafkaSynProducer) Reinit(addrsMap map[string][]string) {
 	}
 	err := p.init(addrsMap)
 	if err != nil {
-		log.Errorf("Producer reinit fail, err=[%s]", err)
+		fmt.Printf("Producer reinit fail, err=[%s]", err)
 	} else {
-		log.Info("Producer reinit succ")
+		fmt.Printf("Producer reinit succ")
 	}
 }
 
@@ -252,7 +252,7 @@ func (p *MafkaSynProducer) Exit() {
 		p.Producer.Close()
 		p.Producer = nil
 	}
-	log.Warn("Producer exit")
+	fmt.Printf("Producer exit")
 }
 
 func (p *MafkaSynProducer) Info() string {
@@ -306,7 +306,7 @@ func NewMafkaAsynProducerWithCastleManager(topic string,
 		return nil, err
 	}
 	client.clientID = castleManager.RegisterObserver(client)
-	log.Infof("Producer register, clientID=[%s]", client.clientID)
+	fmt.Printf("Producer register, clientID=[%s]", client.clientID)
 	return
 }
 
@@ -314,12 +314,12 @@ func (p *MafkaAsynProducer) initLoop(castleManager *s3castleclient.CastleClientM
 	for i := 0; i < s3common.ConnectionRetryTimes; i++ {
 		if brokerAddrs, temErr := castleManager.GetProducerBrokerList(p.Topic); temErr != nil || len(brokerAddrs) == 0 {
 			err = temErr
-			log.Warnf("AsynProducer GetProducerBrokerList fail, err=[%v]", err)
+			fmt.Printf("AsynProducer GetProducerBrokerList fail, err=[%v]", err)
 			time.Sleep(time.Second * 2)
 		} else if err = p.init(brokerAddrs); err != nil {
-			log.Warnf("AsynProducer initProducerAndStartHandler fail, err=[%+v]", err)
+			fmt.Printf("AsynProducer initProducerAndStartHandler fail, err=[%+v]", err)
 		} else {
-			log.Infof("AsynProducer initLoop success")
+			fmt.Printf("AsynProducer initLoop success")
 			err = nil
 			go p.handleProducer()
 			break
@@ -329,7 +329,7 @@ func (p *MafkaAsynProducer) initLoop(castleManager *s3castleclient.CastleClientM
 }
 
 func (p *MafkaAsynProducer) handleProducer() {
-	log.Infof("AsynProducer start HandleProducer")
+	fmt.Printf("AsynProducer start HandleProducer")
 	ticker := time.NewTicker(p.patchCommitInterval)
 	defer ticker.Stop()
 	for {
@@ -340,7 +340,7 @@ func (p *MafkaAsynProducer) handleProducer() {
 				p.messageBuffer = append(p.messageBuffer, item)
 				if int64(len(p.messageBuffer)) >= p.AsyncBufferChanSize {
 					if err := p.handleMessages(p.messageBuffer); err != nil {
-						log.Errorf("AsynProducer send messages fail, it will retry later, err=[%s]", err)
+						fmt.Printf("AsynProducer send messages fail, it will retry later, err=[%s]", err)
 					} else {
 						if p.callback != nil {
 							p.callback.OnSuccess(p.messageBuffer)
@@ -356,15 +356,15 @@ func (p *MafkaAsynProducer) handleProducer() {
 			p.messageBufferLock.Lock()
 			if len(p.messageBuffer) > 0 {
 				if err := p.handleMessages(p.messageBuffer); err != nil {
-					log.Errorf("AsynProducer send messages fail, err=[%s]", err)
+					fmt.Printf("AsynProducer send messages fail, err=[%s]", err)
 					if int64(len(p.messageBuffer)) > p.AsyncBufferChanSize || err == ErrProducerDisconnection {
-						log.Errorf("AsynProducer total failed message will be droped, count=[%d]", len(p.messageBuffer))
+						fmt.Printf("AsynProducer total failed message will be droped, count=[%d]", len(p.messageBuffer))
 						if p.callback != nil {
 							p.callback.OnFailure(p.messageBuffer, err)
 						}
 						p.messageBuffer = nil
 					} else {
-						log.Infof("AsynProducer will retry send messages later")
+						fmt.Printf("AsynProducer will retry send messages later")
 					}
 				} else {
 					if p.callback != nil {
@@ -378,7 +378,7 @@ func (p *MafkaAsynProducer) handleProducer() {
 	}
 exit:
 	p.FlushMessages()
-	log.Infof("AsynProducer exit HandleProducer")
+	fmt.Printf("AsynProducer exit HandleProducer")
 }
 
 //将buffer中的数据立刻发送出去
@@ -406,7 +406,7 @@ func (p *MafkaAsynProducer) handleMessages(items []interface{}) (err error) {
 	var messages []*sarama.ProducerMessage
 	for _, item := range items {
 		if msg, temErr := p.GenerateMessage(item); temErr != nil {
-			log.Errorf("AsynProducer handle Messages, marshal item fail, item=[%v] err=[%s]", item, temErr)
+			fmt.Printf("AsynProducer handle Messages, marshal item fail, item=[%v] err=[%s]", item, temErr)
 			continue
 		} else {
 			messages = append(messages, msg)
@@ -423,9 +423,9 @@ func (p *MafkaAsynProducer) SendMessageToChan(msg interface{}) (err error) {
 	}
 	select {
 	case p.AsyncBufferChan <- msg:
-		log.Debug("AsynProducer put message to buffer chan success")
+		fmt.Printf("AsynProducer put message to buffer chan success")
 	default:
-		log.Errorf("AsynProducer put message to buffer chan fail, item=[%v]", msg)
+		fmt.Printf("AsynProducer put message to buffer chan fail, item=[%v]", msg)
 		err = ErrPutMessageToChanFail
 	}
 	return err
@@ -435,7 +435,7 @@ func (p *MafkaAsynProducer) Close() {
 	p.CastleManager.UnRegisterObserver(p.clientID)
 	close(p.AsyncBufferChan)
 	p.Exit()
-	log.Info("Producer close")
+	fmt.Printf("Producer close")
 }
 
 func (p *MafkaAsynProducer) Exit() {
@@ -446,5 +446,5 @@ func (p *MafkaAsynProducer) Exit() {
 		p.Producer.Close()
 		p.Producer = nil
 	}
-	log.Warn("Producer exit")
+	fmt.Printf("Producer exit")
 }

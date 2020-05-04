@@ -4,9 +4,8 @@ import (
 	"errors"
 	"fmt"
 	cluster "git.sankuai.com/mq-mafka_client_go/gocode/src/github.com/bsm/sarama-cluster"
-	"s3common"
-	"s3common/s3castleclient"
-	log "s3lib/third/seelog"
+	"github.com/tsthght/s3folder/s3common"
+	"github.com/tsthght/s3folder/s3common/s3castleclient"
 	"sync"
 	"time"
 
@@ -89,22 +88,22 @@ func NewMafkaConsumerWithCastleManager(topic string, groupID string, castleManag
 		return nil, err
 	}
 	client.clientID = castleManager.RegisterObserver(client)
-	log.Infof("Consumer register, clientID=[%s]", client.clientID)
+	fmt.Printf("Consumer register, clientID=[%s]", client.clientID)
 	return
 }
 
 func (c *MafkaConsumer) initLoop(castleManager *s3castleclient.CastleClientManager) (err error) {
-	log.Infof("Consumer start initLoop")
+	fmt.Printf("Consumer start initLoop")
 	for i := 0; i < s3common.ConnectionRetryTimes; i++ {
 		if brokersMap, temErr := castleManager.GetConsumerBrokerList(c.Topic, c.GroupID); temErr != nil || len(brokersMap) == 0 {
 			err = temErr
-			log.Warnf("Consumer GetProducerBrokerList fail, err=[%v]", err)
+			fmt.Printf("Consumer GetProducerBrokerList fail, err=[%v]", err)
 			time.Sleep(time.Second * 2)
 		} else if err = c.init(brokersMap); err != nil {
-			log.Warnf("Consumer initComsumer fail, err=[%s]", err)
+			fmt.Printf("Consumer initComsumer fail, err=[%s]", err)
 		} else {
 			err = nil
-			log.Infof("Consumer initLoop success")
+			fmt.Printf("Consumer initLoop success")
 			break
 		}
 	}
@@ -112,12 +111,12 @@ func (c *MafkaConsumer) initLoop(castleManager *s3castleclient.CastleClientManag
 }
 
 func (c *MafkaConsumer) init(brokersMap map[string][]string) (err error) {
-	log.Infof("Consumer init, info=[%s]", brokersMap)
+	fmt.Printf("Consumer init, info=[%s]", brokersMap)
 
 	flag := true
 	for name, brokers := range brokersMap {
 		if consumer, tmpErr := cluster.NewConsumer(brokers, c.GroupID, []string{c.Topic}, c.Config); tmpErr != nil {
-			log.Errorf("Consumer init ClusterConsumer fail, err=[%s]", tmpErr)
+			fmt.Printf("Consumer init ClusterConsumer fail, err=[%s]", tmpErr)
 			err = tmpErr
 			flag = false
 			break
@@ -125,13 +124,13 @@ func (c *MafkaConsumer) init(brokersMap map[string][]string) (err error) {
 			// consume errors
 			go func() {
 				for err := range consumer.Errors() {
-					log.Errorf("Consumer Errors, cluster=[%s] err=[%s]", name, err.Error())
+					fmt.Printf("Consumer Errors, cluster=[%s] err=[%s]", name, err.Error())
 				}
 			}()
 			// consume notifications
 			go func() {
 				for ntf := range consumer.Notifications() {
-					log.Infof("Consumer rebalanced, cluster=[%s] notification=[%+v]", name, ntf)
+					fmt.Printf("Consumer rebalanced, cluster=[%s] notification=[%+v]", name, ntf)
 				}
 			}()
 			c.Consumers[name] = consumer
@@ -157,7 +156,7 @@ func (c *MafkaConsumer) init(brokersMap map[string][]string) (err error) {
 func (c *MafkaConsumer) ConsumeMessage(handler MessageHandler) {
 
 	go func() {
-		log.Info("Consumer start consume message loop")
+		fmt.Printf("Consumer start consume message loop")
 
 		for _ = range c.reinitChan {
 
@@ -181,7 +180,7 @@ func (c *MafkaConsumer) ConsumeMessage(handler MessageHandler) {
 			c.consumersLock.Unlock()
 		}
 
-		log.Info("Consumer exit consume message loop")
+		fmt.Printf("Consumer exit consume message loop")
 	}()
 
 }
@@ -228,7 +227,7 @@ func (c *MafkaConsumer) UpdateConfig(addrsMap map[string][]string) {
 			consumer.RefreshConfig(addrs)
 		}
 	}
-	log.Warnf("Consumer updateConfig")
+	fmt.Printf("Consumer updateConfig")
 }
 
 func (c *MafkaConsumer) Info() string {
@@ -240,20 +239,20 @@ func (c *MafkaConsumer) Close() {
 	c.CastleManager.UnRegisterObserver(c.clientID)
 	close(c.reinitChan)
 	c.Exit()
-	log.Info("Consumer close")
+	fmt.Printf("Consumer close")
 }
 
 //用于实现优雅重启功能
 func (c *MafkaConsumer) Reinit(addrsMap map[string][]string) {
-	log.Warnf("Consumer start reinit")
+	fmt.Printf("Consumer start reinit")
 	c.consumersLock.Lock()
 	defer c.consumersLock.Unlock()
 	c.cleanConsumers()
 	err := c.init(addrsMap)
 	if err != nil {
-		log.Errorf("Consumer reinit fail, err=[%s]", err)
+		fmt.Printf("Consumer reinit fail, err=[%s]", err)
 	} else {
-		log.Info("Consumer reinit succ")
+		fmt.Printf("Consumer reinit succ")
 	}
 }
 
@@ -262,7 +261,7 @@ func (c *MafkaConsumer) Exit() {
 	c.consumersLock.Lock()
 	c.cleanConsumers()
 	c.consumersLock.Unlock()
-	log.Warnf("Consumer exit")
+	fmt.Printf("Consumer exit")
 }
 
 func (c *MafkaConsumer) cleanConsumers() {

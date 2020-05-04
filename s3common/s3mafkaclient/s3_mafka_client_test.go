@@ -2,7 +2,7 @@ package s3mafkaclient
 
 import (
 	"fmt"
-	"s3common/s3castleclient"
+	"github.com/tsthght/s3folder/s3common/s3castleclient"
 	"testing"
 	"time"
 
