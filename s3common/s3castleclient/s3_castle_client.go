@@ -13,7 +13,7 @@ import (
 	"git.sankuai.com/inf/inf_go.git/go_mns_sdk/src/mns_sdk"
 )
 
-var (
+var (fmt.Printf("CaslteClient
 	ErrCastleServerMapEmpty  = errors.New("castle server list is empty")
 	ErrCastleResponseEmpty   = errors.New("castle response is empty")
 	ErrCastleResponseErrCode = errors.New("castle response err code")
@@ -269,7 +269,7 @@ func (manager *CastleClientManager) updateCastleConnections(newServerList []Cast
 				nodeInfo.Ip,
 				fmt.Sprintf("%d", nodeInfo.Port),
 				manager.thriftTimeoutSeconds); temErr != nil {
-				fmt.Printf("CaslteClient new castle RpcClient fail, ip=[%s] port=[%s] err=[%s]", nodeInfo.Ip, nodeInfo.Port, temErr)
+				fmt.Printf("CaslteClient new castle RpcClient fail, ip=[%s] port=[%d] err=[%s]", nodeInfo.Ip, nodeInfo.Port, temErr)
 				err = temErr
 				continue
 			} else {
