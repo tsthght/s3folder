@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/coredns/plugin/pkg/log"
 	"github.com/tsthght/s3folder/s3common"
 	"github.com/tsthght/s3folder/s3lib/s3thriftrpc/castle"
 	"github.com/tsthght/s3folder/s3lib/s3thriftrpc/castleclient"
@@ -270,7 +269,7 @@ func (manager *CastleClientManager) updateCastleConnections(newServerList []Cast
 				nodeInfo.Ip,
 				fmt.Sprintf("%d", nodeInfo.Port),
 				manager.thriftTimeoutSeconds); temErr != nil {
-				log.Errorf("CaslteClient new castle RpcClient fail, ip=[%s] port=[%s] err=[%s]", nodeInfo.Ip, nodeInfo.Port, temErr)
+				fmt.Printf("CaslteClient new castle RpcClient fail, ip=[%s] port=[%s] err=[%s]", nodeInfo.Ip, nodeInfo.Port, temErr)
 				err = temErr
 				continue
 			} else {
@@ -283,7 +282,7 @@ func (manager *CastleClientManager) updateCastleConnections(newServerList []Cast
 
 //和caslte保持同步心跳
 func (manager *CastleClientManager) updateCastleConnectionsLoop() {
-	log.Infof("CastleClient start UpdateCastleConnectionsLoop")
+	fmt.Printf("CastleClient start UpdateCastleConnectionsLoop")
 	ticker := time.NewTicker(time.Duration(time.Second * time.Duration(manager.castleUpdateIntevalSeconds)))
 	defer ticker.Stop()
 	for {
@@ -296,12 +295,12 @@ func (manager *CastleClientManager) updateCastleConnectionsLoop() {
 		}
 	}
 exit:
-	log.Infof("CastleClient UpdateCastleConnectionsLoop exit")
+	fmt.Printf("CastleClient UpdateCastleConnectionsLoop exit")
 }
 
 //更新相关的 broker 列表
 func (manager *CastleClientManager) syncBrokerListLoop() {
-	log.Infof("CastleClient start SyncBrokerList")
+	fmt.Printf("CastleClient start SyncBrokerList")
 	//quick start
 	manager.updateConsumerMafkaBrokerList()
 	manager.updateProducerMafkaBrokerList()
@@ -318,7 +317,7 @@ func (manager *CastleClientManager) syncBrokerListLoop() {
 		}
 	}
 exit:
-	log.Infof("CastleClient SyncBrokerList exit")
+	fmt.Printf("CastleClient SyncBrokerList exit")
 }
 
 func (manager *CastleClientManager) updateConsumerMafkaBrokerList() (err error) {
@@ -365,7 +364,7 @@ func (manager *CastleClientManager) updateConsumerClusterInfo(consumerInfo Consu
 				break
 			}
 		} else {
-			log.Debugf("CastleClient get consumer info success")
+			fmt.Printf("CastleClient get consumer info success")
 			manager.clusterInfoLock.Lock()
 			manager.cachedConsumerClusterInfoMap[consumerInfo.String()] = latestInfo
 			manager.clusterInfoLock.Unlock()
@@ -374,7 +373,7 @@ func (manager *CastleClientManager) updateConsumerClusterInfo(consumerInfo Consu
 		}
 	}
 	if successSign == false {
-		log.Errorf("CastleClient try all castle server list, all fail")
+		fmt.Printf("CastleClient try all castle server list, all fail")
 		err = ErrCastleServerAllFailed
 	}
 	return
@@ -382,7 +381,7 @@ func (manager *CastleClientManager) updateConsumerClusterInfo(consumerInfo Consu
 
 func (manager *CastleClientManager) getConsumerInfo(resp *castle.HeartBeatResponse, consumerInfo string) (info consumerClusterInfoPair, err error) {
 	if resp.ErrorCode == castle.ErrorCode_OK {
-		log.Debugf("CastleClient heart beat response consumer version=[%d]", resp.Version)
+		fmt.Printf("CastleClient heart beat response consumer version=[%d]", resp.Version)
 		if len(resp.ClientResponse.ConsumerResponse.ClusterInfoPair) == 0 {
 			fmt.Printf("CastleClient heart beat response ClusterInfoPair is empty")
 			err = ErrCastleResponseEmpty
@@ -409,11 +408,11 @@ func (manager *CastleClientManager) getConsumerInfo(resp *castle.HeartBeatRespon
 		}
 		manager.lastConsumerResponses[consumerInfo] = resp
 	} else if resp.ErrorCode == castle.ErrorCode_NO_CHANGE {
-		log.Infof("CastleClient HeartBeatResponse ConsumerClusterInfo unchanged")
+		fmt.Printf("CastleClient HeartBeatResponse ConsumerClusterInfo unchanged")
 	} else if resp.ErrorCode == castle.ErrorCode_NO_PARTITION_ASSIGN {
-		log.Warningf("CastleClient HeartBeatResponse no partition assign to this comsumer")
+		fmt.Printf("CastleClient HeartBeatResponse no partition assign to this comsumer")
 	} else {
-		log.Errorf("CastleClient HeartBeatResponse error, errCode=[%d]", resp.ErrorCode)
+		fmt.Printf("CastleClient HeartBeatResponse error, errCode=[%d]", resp.ErrorCode)
 		err = ErrCastleResponseErrCode
 	}
 	return
@@ -424,7 +423,7 @@ func (manager *CastleClientManager) updateProducerMafkaBrokerList() (err error) 
 	defer manager.topicLock.RUnlock()
 	for _, producerTopic := range manager.producerTopicList {
 		if err = manager.updateProducerClusterInfo(producerTopic); err != nil {
-			log.Warningf("CastleClient UpdateProducerClusterInfo fail, topic=[%s] err=[%s]", producerTopic, err)
+			fmt.Printf("CastleClient UpdateProducerClusterInfo fail, topic=[%s] err=[%s]", producerTopic, err)
 		}
 	}
 	return
@@ -451,9 +450,9 @@ func (manager *CastleClientManager) updateProducerClusterInfo(topic string) (err
 
 	for castleKey, castleClient := range manager.castleClientMap {
 		if response, headBeatErr := castleClient.Client.GetHeartBeat(manager.context, request); headBeatErr != nil {
-			log.Warningf("CastleClient GetHeartBeat fail, castleClientInfo=[%s] err=[%s]", castleKey, headBeatErr)
+			fmt.Printf("CastleClient GetHeartBeat fail, castleClientInfo=[%s] err=[%s]", castleKey, headBeatErr)
 		} else if latestInfo, responseErr := manager.getProducerInfo(response, topic); responseErr != nil {
-			log.Warningf("CastleClient getProducerInfo fail, castleClientHost=[%s] err=[%s] version=[%s] hostname=[%s] ip=[%s] clientAppKey=[%s] topic=[%s] clientInstanceID=[%s] castleKey=[%s]",
+			fmt.Printf("CastleClient getProducerInfo fail, castleClientHost=[%s] err=[%s] version=[%s] hostname=[%s] ip=[%s] clientAppKey=[%s] topic=[%s] clientInstanceID=[%s] castleKey=[%s]",
 				castleKey,
 				responseErr,
 				manager.version,
@@ -465,7 +464,7 @@ func (manager *CastleClientManager) updateProducerClusterInfo(topic string) (err
 				castleKey)
 		} else {
 			if latestInfo != nil {
-				log.Debugf("CastleClient getProducerInfo success, version=[%s] hostname=[%s] ip=[%s] clientAppKey=[%s] topic=[%s] clientInstanceID=[%s] castleKey=[%s]", manager.version,
+				fmt.Printf("CastleClient getProducerInfo success, version=[%s] hostname=[%s] ip=[%s] clientAppKey=[%s] topic=[%s] clientInstanceID=[%s] castleKey=[%s]", manager.version,
 					manager.hostname,
 					manager.ip,
 					manager.clientAppKey,
@@ -481,7 +480,7 @@ func (manager *CastleClientManager) updateProducerClusterInfo(topic string) (err
 		}
 	}
 	if successSign == false {
-		log.Errorf("CastleClient try all castle server list, all failed")
+		fmt.Printf("CastleClient try all castle server list, all failed")
 		err = ErrCastleServerAllFailed
 	}
 	return
@@ -489,9 +488,9 @@ func (manager *CastleClientManager) updateProducerClusterInfo(topic string) (err
 
 func (manager *CastleClientManager) getProducerInfo(resp *castle.HeartBeatResponse, producerInfo string) (info producerClusterInfoPair, err error) {
 	if resp.ErrorCode == castle.ErrorCode_OK {
-		log.Debugf("CastleClient HeartBeatResponse producer version=[%d]", resp.Version)
+		fmt.Printf("CastleClient HeartBeatResponse producer version=[%d]", resp.Version)
 		if len(resp.ClientResponse.ProducerResponse.ClusterInfoPair) == 0 {
-			log.Warningf("CastleClient HeartBeatResponse ClusterInfoPair is empty")
+			fmt.Printf("CastleClient HeartBeatResponse ClusterInfoPair is empty")
 			err = ErrCastleResponseEmpty
 		} else {
 			info = resp.ClientResponse.ProducerResponse.ClusterInfoPair
@@ -499,7 +498,7 @@ func (manager *CastleClientManager) getProducerInfo(resp *castle.HeartBeatRespon
 			if lastProducerResponse, ok := manager.lastProducerResponses[producerInfo]; ok {
 				if lastProducerResponse.Version < resp.Version {
 					addrs := manager.generateProducerAddrs(info)
-					log.Warningf("CastleClient producer response version changed, lastVersion=[%d]  newVersion=[%d]",
+					fmt.Printf("CastleClient producer response version changed, lastVersion=[%d]  newVersion=[%d]",
 						lastProducerResponse.Version, resp.Version)
 					manager.notifyReinit(producerInfo, addrs)
 				}
@@ -510,16 +509,16 @@ func (manager *CastleClientManager) getProducerInfo(resp *castle.HeartBeatRespon
 	} else if resp.ErrorCode == castle.ErrorCode_REGISTER_FAIL {
 		if lastProducerResponse, ok := manager.lastProducerResponses[producerInfo]; ok {
 			if lastProducerResponse.Version < resp.Version {
-				log.Warningf("CastleClient producer response REGISTER_FAIL, lastVersion=[%d]  newVersion=[%d]",
+				fmt.Printf("CastleClient producer response REGISTER_FAIL, lastVersion=[%d]  newVersion=[%d]",
 					lastProducerResponse.Version, resp.Version)
 				manager.notifyExit(producerInfo)
 			}
 		}
 		manager.lastProducerResponses[producerInfo] = resp
 	} else if resp.ErrorCode == castle.ErrorCode_NO_CHANGE {
-		log.Infof("CastleClient HeartBeatResponse ProducerClusterInfo unchanged")
+		fmt.Printf("CastleClient HeartBeatResponse ProducerClusterInfo unchanged")
 	} else {
-		log.Errorf("CastleClient HeartBeatResponse error, errCode=[%d]", resp.ErrorCode)
+		fmt.Printf("CastleClient HeartBeatResponse error, errCode=[%d]", resp.ErrorCode)
 		err = ErrCastleResponseErrCode
 	}
 	return
@@ -531,7 +530,7 @@ func (manager *CastleClientManager) Exit() {
 	defer manager.CastleMapLock.RUnlock()
 	for clientAdd, castleClient := range manager.castleClientMap {
 		castleClient.Close()
-		log.Infof("CastleClient close RPC client, castleClient=[%s]", clientAdd)
+		fmt.Printf("CastleClient close RPC client, castleClient=[%s]", clientAdd)
 	}
 }
 
@@ -540,10 +539,10 @@ func (manager *CastleClientManager) GetProducerBrokerList(topic string) (addrsMa
 	clusterInfo, exit := manager.cachedProducerClusterInfoMap[topic]
 	manager.clusterInfoLock.RUnlock()
 	if exit == false {
-		log.Warningf("CastleClient no related clusterInfo, topic=[%s]", topic)
+		fmt.Printf("CastleClient no related clusterInfo, topic=[%s]", topic)
 		err = ErrCachedBrokerListEmpty
 	} else if len(clusterInfo) == 0 {
-		log.Warningf("CastleClient no related clusterInfo, topic=[%s]", topic)
+		fmt.Printf("CastleClient no related clusterInfo, topic=[%s]", topic)
 		err = ErrCachedBrokerListEmpty
 	} else {
 		addrsMap = manager.generateProducerAddrs(clusterInfo)
@@ -561,10 +560,10 @@ func (manager *CastleClientManager) GetConsumerBrokerList(topic string, groupID 
 	manager.clusterInfoLock.RUnlock()
 
 	if exit == false {
-		log.Warningf("CastleClient no related clusterInfo, topic=[%s] groupID=[%s]", topic, groupID)
+		fmt.Printf("CastleClient no related clusterInfo, topic=[%s] groupID=[%s]", topic, groupID)
 		err = ErrCachedBrokerListEmpty
 	} else if len(clusterInfo) == 0 {
-		log.Warningf("CastleClient no related clusterInfo, topic=[%s] groupID=[%s]", topic, groupID)
+		fmt.Printf("CastleClient no related clusterInfo, topic=[%s] groupID=[%s]", topic, groupID)
 		err = ErrCachedBrokerListEmpty
 	} else {
 		addrsMap = manager.generateConsumerAddrs(clusterInfo)
@@ -621,7 +620,7 @@ func (manager *CastleClientManager) UnRegisterObserver(clientID string) error {
 	defer manager.observerLock.Unlock()
 	if _, ok := manager.observerMap[clientID]; ok {
 		delete(manager.observerMap, clientID)
-		log.Warningf("CastleClient remove observer, clientID=[%s]", clientID)
+		fmt.Printf("CastleClient remove observer, clientID=[%s]", clientID)
 	} else {
 		return ErrObserverNotExisted
 	}
