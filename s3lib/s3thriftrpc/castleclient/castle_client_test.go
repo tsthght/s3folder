@@ -3,7 +3,7 @@ package castleclient
 import (
 	"context"
 	"net"
-	"s3lib/s3thriftrpc/castle"
+	"github.com/tsthght/s3folder/s3lib/s3thriftrpc/castle"
 	"testing"
 	"time"
 
